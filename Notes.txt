@@ -1,0 +1,95 @@
+MDPRemoteController can also act as a bluetooth server since AMDTool always acts as client
+ Connect button allows choosing between connecting to a PC (as a client), or starts a listening socket and waits for AMD tool to connect (as a server). When AMD tool disconnects, the app stays in “waiting for reconnect” and accepts the next connection automatically
+
+Status updates
+String prefixes: parseStatusLine()
+"MSG,",
+"status=",
+"STATUS,",
+"STATUS:",
+"ROBOTSTATUS,",
+"ROBOT_STATUS,",
+"Robot Status:"
+
+Each obstacle must have a unique obstacle number. Optionally, an obstacle can be assigned a unique target ID. If an obstacle has a target ID, it will display it in large font, otherwise it will display its obstacle number in small font
+
+Extra feature: Arena supports pinch to zoom and drag to pan, to enable larger arena sizes
+
+Extra feature: Can receive bluetooth messages to control robot and edit obstacles, arena and robot size
+FORWARD BACKWARD TURN_LEFT TURN_RIGHT
+OBS,ADD,<num>,<x>,<y>,<size>
+OBS,MOVE,<num>,<x>,<y>
+OBS,DEL,<num>
+OBS,SIZE,<num>,<size>
+OBS,NUM,<old>,<new>
+TARGET,ADD,<num>,<N|E|S|W>
+TARGET,CLEAR,<num>
+ARENA,SIZE,<width>,<height>
+ROBOT,SIZE,<size>
+Set/Clear target ID: TARGET,<num>,<targetID> (0 to clear)
+Update robot position/orientation: ROBOT,<x>,<y>,<N|E|S|W>
+
+Extra feature: Time trial
+ Manually control robot to reach all targets, compare score with computer opponent
+
+Extra feature: Additional movement options
+Virtual joystick, device tilt, Tap‑to‑move
+
+
+
+Shortest path computation:
+Shortest Hamiltonian Path over targets, where each movement action has cost 1 (forward, backward, rotate left, rotate right). The robot “scans” a target when it is adjacent to that obstacle face and facing it.
+
+Build reachable robot states for each target face
+collectTargets() gathers each target face as a Target object (obstacle + face N/E/S/W).
+buildApproachStates(Target t, width, height) computes all robot poses (x, y, direction) that are valid for scanning that face.
+Each valid pose becomes a state encoded as (x, y, dir).
+
+Compute shortest path between poses using BFS
+States are encoded as an index: stateIndex(x, y, dir, width).
+BFS over the grid + orientation gives shortest action cost:
+bfsDistances(startState, width, height, totalStates) returns distance to all states.
+bfsActions(startState, goalState, width, height, totalStates) returns the actual action sequence (F/B/L/R).
+
+Dynamic programming over targets (TSP-style)
+We treat each target face as a “node,” but each node has multiple valid approach states.
+We create approachStates (all approach poses) and targetToApproachIdx (mapping from target → list of indices in approachStates).
+DP table:
+dp[mask][s]: minimum cost to cover target set mask and end at approach state s.
+prevState, prevMask: backpointers to reconstruct the best end state sequence.
+After DP completes, we reconstruct the optimal sequence of approach states, then stitch together the BFS action sequences between consecutive states.
+
+Key functions & variables
+
+computeShortestPath()
+Orchestrates everything (targets → approach states → BFS distances → DP → path actions).
+collectTargets()
+Reads targets from arenaView.getObstaclesSnapshot() and target face flags.
+buildApproachStates(Target t, int width, int height)
+Generates all valid “scan poses” for a specific target face.
+bfsDistances(...)
+BFS for costs between pose states.
+bfsActions(...)
+BFS that returns action steps (F/B/L/R) for animation.
+pathActions
+The final action list used by playback.
+pathIndex, pathPlaying
+Playback progress state.
+
+State and movement model
+
+State = (x, y, dir) where dir ∈ {0:N, 1:E, 2:S, 3:W}.
+Actions cost 1:
+L rotate left, R rotate right
+F move forward, B move backward
+All movement is blocked if the robot footprint would collide with obstacles or leave the arena.
+BFS neighbors:
+(x, y, (dir+3)%4) by L
+(x, y, (dir+1)%4) by R
+(x+dx, y+dy, dir) by F
+(x-dx, y-dy, dir) by B
+
+Why this is shortest
+
+BFS ensures shortest action paths between any two states.
+DP over bitmasks ensures the globally shortest sequence that visits (scans) all targets, measured in total actions.
