@@ -11,7 +11,7 @@ String prefixes: parseStatusLine()
 "ROBOT_STATUS,",
 "Robot Status:"
 
-Each obstacle must have a unique obstacle number. Optionally, an obstacle can be assigned a unique target ID. If an obstacle has a target ID, it will display it in large font, otherwise it will display its obstacle number in small font
+Each obstacle must have a unique obstacle number. Optionally, an obstacle can be assigned a unique target ID. If an obstacle has a target ID, it will display it in large font when the robot has scanned it, otherwise it will display its obstacle number in small font
 
 Extra feature: Arena supports pinch to zoom and drag to pan, to enable larger arena sizes
 
